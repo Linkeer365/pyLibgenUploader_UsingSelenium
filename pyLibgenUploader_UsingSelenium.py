@@ -1,4 +1,5 @@
 import selenium
+import re
 
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
@@ -27,19 +28,56 @@ book_dir=r"D:\AllDowns\newbooks"
 
 already_path=r"D:\AllDowns\upload_results\uploadYet.txt"
 
+fail_path=r"D:\AllDowns\upload_results\uploadFailYet.txt"
+
 if not os.path.exists(already_path):
     open(already_path,"w").close()
 
 
 firefox_path=r"C:\Program Files\Mozilla Firefox\geckodriver.exe"
-
 options = Options()
-# options.headless = True
-options.headless=False
+options.headless = True
+# options.headless=False
+
+
+
+proxy="root:8g-E_hejX)df9(y]@208.167.233.71:10086"
+# proxy="120.232.193.208:10087"
+# proxy="127.0.0.1:10087"
+
+options.add_argument(f"--proxy-server=http:{proxy}")
 
 driver=webdriver.Firefox(options=options,executable_path=firefox_path)
 
-max_delay=5
+# proxies = {
+#     'https': 'https://127.0.0.1:64708',  # 查找到你的vpn在本机使用的https代理端口
+#     'http': 'http://127.0.0.1:64708',  # 查找到vpn在本机使用的http代理端口
+# }
+
+# 换用chrome好了，还是更喜欢chrome一些些...
+
+# driver=webdriver.Chrome(executable_path=r"C:\Users\linsi\AppData\Local\CentBrowser\Application\chromedriver.exe")
+
+# chrome_path=
+
+
+max_delay=10
+
+cnt=0
+
+def cap_num(some_num):
+    # 注意，这里我们只预留到十，也就是说，十一以上的全部都得给我用阿拉伯数字！！！
+    caps=["零","一","二","三","四","五","六","七","八","九","十"]
+    for num,cap in enumerate(caps):
+        if num==some_num:
+            return cap
+
+def find_element_by_xpath2(patt):
+    try:
+        res=WebDriverWait(driver,max_delay).until(EC.presence_of_element_located((By.XPATH, patt)))
+    except selenium.common.exceptions.TimeoutException:
+        res=""
+    return res
 
 def upload_one_book(book_path,book_isbn):
     # book_path=r"C:\Users\linsi\Desktop\Java Printing.pdf"
@@ -49,9 +87,6 @@ def upload_one_book(book_path,book_isbn):
 
     auth_str="genesis:upload"
     main_upload_url=f"https://{auth_str}@library.bz/main/upload/"
-
-    def find_element_by_xpath2(patt):
-        return WebDriverWait(driver,max_delay).until(EC.presence_of_element_located((By.XPATH, patt)))
 
     driver.get(main_upload_url)
 
@@ -75,8 +110,28 @@ def upload_one_book(book_path,book_isbn):
 
     while True:
         cur_url=driver.current_url
+        # print(cur_url)
         if cur_url.startswith(upload_new_checker):
             break
+        if driver.find_elements_by_class_name("form_error"):
+            print("already.")
+            with open(already_path,"a",encoding="utf-8") as f:
+                f.write(book_path+"\n")
+            return 
+
+    # # 新建一个不用代理的...
+
+    # driver.quit()
+
+    # options = Options()
+    # options.headless = True
+    # # # options.headless=False
+
+    # # # proxy="root:G5q]3kDDuQxWN4xv@137.220.42.229:10086"
+
+    # # # options.add_argument(f"--proxy-server=sock5:{proxy}")
+
+    # driver=webdriver.Firefox(options=options,executable_path=firefox_path)
 
     # with auth
     upload_new_url=driver.current_url.replace("//library.bz",f"//{auth_str}@library.bz")
@@ -86,10 +141,12 @@ def upload_one_book(book_path,book_isbn):
     selectBtn.click()
 
     isbnInputBox=find_element_by_xpath2("//input[@name='metadata_query']")
-    isbnInputBox.send_keys(book_isbn)
+
+    if len(book_isbn)==13:
+        isbnInputBox.send_keys(book_isbn)
 
     fetchBtn=find_element_by_xpath2("//input[@value='Fetch']")
-    # fetchBtn.click()
+    fetchBtn.click()
 
     titleNode=find_element_by_xpath2("//input[@name='title']")
     title=titleNode.get_attribute("value")
@@ -110,12 +167,30 @@ def upload_one_book(book_path,book_isbn):
     else:
         new_dict=open_one_link(driver,book_isbn)
         print("final pack:", new_dict)
+        if new_dict=={}:
+            print(f"Failed:{book_path}")
+            with open(fail_path,"a",encoding="utf-8") as f:
+                f.write(book_path+"\n")
+                f.write(upload_new_url+"\n\n")
+            return 
         fill_in_blanks(driver,new_dict,upload_new_url)
-        time.sleep(2)
+        time.sleep(1)
+
+    # if "第" in book_path and "卷" in book_path:
+    #     formatted_bookpath=book_path.replace("")
+
+    volume_list=re.findall("第(\d{1,2})卷",book_path)
+    if volume_list and volume_list[0].isdigit():
+        volume=volume_list[0]
+        print("has volume:",volume)
+        volumeBox=find_element_by_xpath2("//input[@name='volume']")
+        volumeBox.send_keys(volume)
+        print("volume attached.")
+
 
     final_submitBtn=find_element_by_xpath2("//input[@value='SUBMIT!']")
     final_submitBtn.click()
-    time.sleep(5)
+    time.sleep(1)
     cur_url=driver.current_url
 
     if submit_checker in cur_url:
@@ -131,16 +206,36 @@ def main():
     books=[book for book in books if book.endswith(".pdf")]
 
     with open(already_path,"r",encoding="utf-8") as f:
-        already_books=set(f.readlines())
+        already_books=f.readlines()
+    
+    with open(fail_path,"r",encoding="utf-8") as f:
+        already_books.extend(f.readlines())
+    
+    already_books=set(already_books)
 
     for each_book in books:
-        assert "isbnisbn" in each_book
-        each_bookname,each_isbn=each_book.split("isbnisbn")
-        each_bookpath=f"{book_dir}{os.sep}{each_bookname}"
-        if each_bookpath+"\n" in already_books:
+        if "isbnisbn" in each_book:
+            each_bookname,each_isbn=each_book.split("isbnisbn")
+        elif "dbdb" in each_book:
+            each_bookname,each_isbn=each_book.split("dbdb")
+        each_isbn=each_isbn.strip(".pdf")
+        each_bookpath=f"{book_dir}{os.sep}{each_book}"
+        # 防止你最后一行...
+        if each_bookpath+"\n" in already_books or each_bookpath in already_books:
             print("already:",each_bookpath)
             continue
+        startAt=time.time()
         upload_one_book(each_bookpath,each_isbn)
+        endAt=time.time()
+        print("Run time:",endAt-startAt)
+        global cnt
+        cnt+=1
+        if cnt%250==0:
+            global driver
+            driver.quit()
+            print("reflesh!")
+            driver=webdriver.Firefox(options=options,executable_path=firefox_path)
+
 
     print("all done.")
 

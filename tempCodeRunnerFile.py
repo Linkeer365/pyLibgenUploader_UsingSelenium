@@ -19,10 +19,10 @@ import sys
 firefox_path=r"C:\Program Files\Mozilla Firefox\geckodriver.exe"
 
 options = Options()
-# options.headless = True
-options.headless=False
+options.headless = True
+# options.headless=False
 
-max_delay=15
+max_delay=5
 
 
 # 这里是担心和主文件中的driver混起来，所以在这里也把driver也一并传进来了...
@@ -59,15 +59,6 @@ def translate(new_str,old_str,new_dict,old_dict):
 def info_formatter(names_vals:dict):
     new_dict={}
 
-    # 统一书号（要显示在mywords和标题中）
-
-    tongyishuhao_str=""
-
-    if "统一书号" in names_vals.keys():
-        tongyishuhao=names_vals["统一书号"]
-        tongyishuhao_str=f"（统一书号：{tongyishuhao}）"
-
-
     # title
 
     if "副标题" in names_vals.keys():
@@ -79,7 +70,6 @@ def info_formatter(names_vals:dict):
     else:
         raise("ERROR: 无标题")
 
-    new_dict["title"]=new_dict["title"]+tongyishuhao_str
 
     # authors
 
@@ -110,7 +100,7 @@ def info_formatter(names_vals:dict):
 
     # description
 
-    mywords = tongyishuhao_str+"\n\n书签已装载，\n书签制作方法请找 yjyouaremysunshine@163.com\n完全免费\n（若有印刷不清等问题也请发送相关邮件，会尽快更新的）\n\n"
+    mywords = "\n\n书签已装载，\n书签制作方法请找 yjyouaremysunshine@163.com\n完全免费\n（若有印刷不清等问题也请发送相关邮件，会尽快更新的）\n\n"
 
     if "内容描述" in names_vals.keys():
         description=names_vals["内容描述"]
@@ -119,13 +109,14 @@ def info_formatter(names_vals:dict):
         description=""
         new_dict["description"]=mywords+description
 
+
+
     translate("publisher","出版社",new_dict,names_vals)
     translate("pages","页数",new_dict,names_vals)
     translate("series","丛书",new_dict,names_vals)
     translate("isbn","ISBN",new_dict,names_vals)
 
     new_dict["language"]="中文"
-
 
     return new_dict
 
@@ -142,32 +133,22 @@ def info_formatter(names_vals:dict):
 
 
 
-def open_one_link(driver,isbn_or_db):
+def open_one_link(driver,isbn):
 
     # 注意末尾一定不能带/，不然...估计就会被解读为文件夹了...
 
-    if len(isbn_or_db)==13:
-        isbn=isbn_or_db
-        douban_link=f"https://book.douban.com/isbn/{isbn}"
-    elif isbn_or_db.isdigit():
-        db=isbn_or_db
-        douban_link=f"https://book.douban.com/subject/{db}"
-
-    
+    douban_link=f"https://book.douban.com/isbn/{isbn}"
     driver.get(douban_link)
     infoNode=find_element_by_id2(driver,"info")
     if infoNode=="":
-        print(f"豆瓣未收录: {isbn_or_db}")
+        print(f"豆瓣未收录: {isbn}")
         return {}
     
     info="\n"+infoNode.text
     # 跟我玩这套，我直接用repr形式来对付你！
+    repr_info=repr(info)
 
-    qiangxinghouzhui="\\n'"
-
-    repr_info=repr(info)[:-1]+qiangxinghouzhui
-
-    print(repr_info)
+    # print(repr_info)
 
     # 注意这里的匹配是4个\，我也不知道为什么，就是试出来的...
 
@@ -176,11 +157,8 @@ def open_one_link(driver,isbn_or_db):
     val_patt=": (.*?)\\\\n"
     vals=re.findall(val_patt,repr_info)
 
-    print(namefields)
-    print(vals)
-
-    assert isinstance(isbn_or_db,str)
-    # vals.append(isbn_or_db)
+    assert isinstance(isbn,str)
+    vals.append(isbn)
 
     names_vals={namefield:val for namefield,val in zip(namefields,vals)}
 
@@ -204,14 +182,12 @@ def open_one_link(driver,isbn_or_db):
     titleNode=find_element_by_xpath2(driver,"//span[@property='v:itemreviewed']")
 
     if titleNode=="":
-        print(f"豆瓣未收录: {isbn_or_db}")
+        print(f"豆瓣未收录: {isbn}")
         return {}
 
     title=titleNode.text
 
     names_vals["大标题"]=title
-
-    print("names_values:",names_vals)
 
     new_dict = info_formatter(names_vals)
 
@@ -246,13 +222,7 @@ def main():
     time.sleep(15)
     driver.quit()
 
-def waibao2():
-    driver=webdriver.Firefox(options=options,executable_path=firefox_path)
-    isbn_or_db="10554308"
-    new_dict=open_one_link(driver,isbn_or_db)
-    print("final pack:",new_dict)
-
-def waibao1():
+def waibao():
     driver=webdriver.Firefox(options=options,executable_path=firefox_path)
     missing_author_path=r"D:\checkifuploaded\missing_authors.txt"
     changed_author_path=r"D:\OneDrive - CUHK-Shenzhen\Linkeer365BookReview\source\_posts\【长期更新】每日传书计划.md"
@@ -282,16 +252,15 @@ def waibao1():
         new_dict=open_one_link(driver,isbn)
         if new_dict=={}:
             new_line=line
-        else:    
-            author=new_dict["authors"]
-            if author=="":
-                new_line=line
-            else:
-                new_line=line.replace("NIL",author)
-                format_line=f"{link}\n[Author(s) -> \"{author}\"]\n\n"
-                format_lines.append(format_line)
-                booklines[int(idx)]=new_line
-                print("new line:",new_line)
+        author=new_dict["authors"]
+        if author=="":
+            new_line=line
+        else:
+            new_line=line.replace("NIL",author)
+            format_line=f"{link}\n[Author(s) -> \"{author}\"]\n\n"
+            format_lines.append(format_line)
+            booklines[int(idx)]=new_line
+            print("new line:",new_line)
 
         new_lines.append(new_line)
 
@@ -303,8 +272,8 @@ def waibao1():
         f.write(new_lines_s)
     with open(changing_format_path,"w",encoding="utf-8") as f:
         f.write(format_lines_s)
-    with open(changed_author_path,"w",encoding="utf-8") as f:
-        f.write(booklines_s)
+    with open(changing_format_path,"w",encoding="utf-8") as f:
+        f.write(format_lines_s)
 
     print("done.")
 
@@ -313,7 +282,7 @@ def waibao1():
 
 if __name__ == '__main__':
     # main()
-    waibao2()
+    waibao()
     # namefields: ['作者', '出版社', '出品方', '译者', '出版年', '页数', '定价', '装帧', '丛书', 'ISBN'](10)
     # vals: ['[日] 东野圭吾', '南海出版公司', '新经典文化', '刘姿君', '2013-1-1', '538', '39.50元', '精装', '新经典文库·东野圭吾作品'](10)
     # 可以观察到，vals少了ISBN这个部分
