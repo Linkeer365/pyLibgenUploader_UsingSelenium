@@ -236,7 +236,8 @@ def fill_in_blanks(driver,new_dict,upload_new_url):
 
 def main():
     driver=webdriver.Firefox(options=options,executable_path=firefox_path)
-    isbn = "9787540705336"
+    # isbn = "9787540705336"
+    isbn="9787544762281"
     new_dict=open_one_link(driver,isbn)
     print("final pack:",new_dict)
     # sys.exit(0)
@@ -245,6 +246,15 @@ def main():
     fill_in_blanks(driver,new_dict,upload_new_url)
     time.sleep(15)
     driver.quit()
+
+def waibao222():
+    driver=webdriver.Firefox(options=options,executable_path=firefox_path)
+    isbn="9787100065153"
+    new_dict=open_one_link(driver,isbn)
+    print("final pack of isbn:",new_dict)
+    db="3239624"
+    new_dict2=open_one_link(driver,db)
+    print("final pack of db:",new_dict2)
 
 def waibao2():
     driver=webdriver.Firefox(options=options,executable_path=firefox_path)
@@ -312,8 +322,8 @@ def waibao1():
     # print(title)
 
 if __name__ == '__main__':
-    # main()
-    waibao2()
+    waibao222()
+    # waibao2()
     # namefields: ['作者', '出版社', '出品方', '译者', '出版年', '页数', '定价', '装帧', '丛书', 'ISBN'](10)
     # vals: ['[日] 东野圭吾', '南海出版公司', '新经典文化', '刘姿君', '2013-1-1', '538', '39.50元', '精装', '新经典文库·东野圭吾作品'](10)
     # 可以观察到，vals少了ISBN这个部分

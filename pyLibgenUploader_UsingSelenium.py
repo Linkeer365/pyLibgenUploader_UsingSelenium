@@ -1,3 +1,10 @@
+# driver 在夜间不动的时候容易假死，记得用咖啡因！
+'''
+This example demonstrates a simple use of pycallgraph.
+'''
+from pycallgraph import PyCallGraph
+from pycallgraph.output import GraphvizOutput
+
 import selenium
 import re
 
@@ -36,14 +43,17 @@ if not os.path.exists(already_path):
 
 firefox_path=r"C:\Program Files\Mozilla Firefox\geckodriver.exe"
 options = Options()
-options.headless = True
-# options.headless=False
+# options.headless = True
+options.headless=False
 
 
 
-proxy="root:8g-E_hejX)df9(y]@208.167.233.71:10086"
+# proxy="127.0.0.1:10086"
 # proxy="120.232.193.208:10087"
-# proxy="127.0.0.1:10087"
+
+# 注意：你用http的时候要开启http全局代理（v2rayN红色图标）！！
+
+proxy="127.0.0.1:10087"
 
 options.add_argument(f"--proxy-server=http:{proxy}")
 
@@ -137,44 +147,66 @@ def upload_one_book(book_path,book_isbn):
     upload_new_url=driver.current_url.replace("//library.bz",f"//{auth_str}@library.bz")
     print("upload new url",upload_new_url)
 
-    selectBtn=find_element_by_xpath2("//select[@name='metadata_source']/option[@value='douban']")
-    selectBtn.click()
+    new_dict=open_one_link(driver,book_isbn)
+    print("final pack:", new_dict)
+    if new_dict=={}:
+        print(f"Failed:{book_path}")
+        with open(fail_path,"a",encoding="utf-8") as f:
+            f.write(book_path+"\n")
+            f.write(upload_new_url+"\n\n")
+        return 
+    fill_in_blanks(driver,new_dict,upload_new_url)
+    time.sleep(1)
 
-    isbnInputBox=find_element_by_xpath2("//input[@name='metadata_query']")
+    if "第" in book_path and "卷" in book_path:
+        formatted_bookpath=book_path.replace("")
 
-    if len(book_isbn)==13:
-        isbnInputBox.send_keys(book_isbn)
 
-    fetchBtn=find_element_by_xpath2("//input[@value='Fetch']")
-    fetchBtn.click()
 
-    titleNode=find_element_by_xpath2("//input[@name='title']")
-    title=titleNode.get_attribute("value")
+    # 由于douban的fetch经常出问题（没fetch到作者等等问题...），
+    
+    # # 所以现在一律不使用douban-fetch的办法，自己爬豆瓣
 
-    if title!="":
+    # selectBtn=find_element_by_xpath2("//select[@name='metadata_source']/option[@value='douban']")
+    # selectBtn.click()
 
-        langNode=find_element_by_xpath2("//input[@name='language']")
-        myLang="中文"
-        langNode.send_keys(myLang)
+    # isbnInputBox=find_element_by_xpath2("//input[@name='metadata_query']")
 
-        ori_descriptionNode=find_element_by_xpath2("//textarea[@name='description']")
-        ori_description=ori_descriptionNode.text
-        mywords="\n\n书签已装载，\n书签制作方法请找 yjyouaremysunshine@163.com\n完全免费\n（若有印刷不清等问题也请发送相关邮件，会尽快更新的）\n\n"
-        description=mywords+ori_description
-        ori_descriptionNode.clear()
-        ori_descriptionNode.send_keys(description)
-        # time.sleep(1)
-    else:
-        new_dict=open_one_link(driver,book_isbn)
-        print("final pack:", new_dict)
-        if new_dict=={}:
-            print(f"Failed:{book_path}")
-            with open(fail_path,"a",encoding="utf-8") as f:
-                f.write(book_path+"\n")
-                f.write(upload_new_url+"\n\n")
-            return 
-        fill_in_blanks(driver,new_dict,upload_new_url)
-        time.sleep(1)
+    # if len(book_isbn)==13:
+    #     isbnInputBox.send_keys(book_isbn)
+
+    # fetchBtn=find_element_by_xpath2("//input[@value='Fetch']")
+    # fetchBtn.click()
+
+    # titleNode=find_element_by_xpath2("//input[@name='title']")
+    # title=titleNode.get_attribute("value")
+
+    
+
+    # if title!="":
+
+    #     langNode=find_element_by_xpath2("//input[@name='language']")
+    #     myLang="中文"
+    #     langNode.send_keys(myLang)
+
+    #     ori_descriptionNode=find_element_by_xpath2("//textarea[@name='description']")
+    #     ori_description=ori_descriptionNode.text
+    #     mywords="\n\n书签已装载，\n书签制作方法请找 yjyouaremysunshine@163.com\n完全免费\n（若有印刷不清等问题也请发送相关邮件，会尽快更新的）\n\n"
+    #     description=mywords+ori_description
+    #     ori_descriptionNode.clear()
+    #     ori_descriptionNode.send_keys(description)
+    #     # time.sleep(1)
+    # else:
+    #     new_dict=open_one_link(driver,book_isbn)
+    #     print("final pack:", new_dict)
+    #     if new_dict=={}:
+    #         print(f"Failed:{book_path}")
+    #         with open(fail_path,"a",encoding="utf-8") as f:
+    #             f.write(book_path+"\n")
+    #             f.write(upload_new_url+"\n\n")
+    #         return 
+    #     fill_in_blanks(driver,new_dict,upload_new_url)
+    #     time.sleep(1)
 
     # if "第" in book_path and "卷" in book_path:
     #     formatted_bookpath=book_path.replace("")
@@ -243,3 +275,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+    # graphviz = GraphvizOutput()
+    # graphviz.output_file = r'D:\AllDowns\upload_results\basiccccc.png'
+    # with PyCallGraph(output=graphviz):
+    #     main()
