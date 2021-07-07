@@ -1,9 +1,9 @@
 # driver 在夜间不动的时候容易假死，记得用咖啡因！
-'''
-This example demonstrates a simple use of pycallgraph.
-'''
-from pycallgraph import PyCallGraph
-from pycallgraph.output import GraphvizOutput
+# '''
+# This example demonstrates a simple use of pycallgraph.
+# '''
+# from pycallgraph import PyCallGraph
+# from pycallgraph.output import GraphvizOutput
 
 import selenium
 import re
@@ -114,6 +114,7 @@ def upload_one_book(book_path,book_isbn):
     uploadBtn.click()
 
     upload_new_checker="https://library.bz/main/uploads/new/"
+    upload_new_checker2=f"https://{auth_str}@library.bz/main/uploads/new/"
 
     submit_checker="edit"
 
@@ -121,7 +122,9 @@ def upload_one_book(book_path,book_isbn):
     while True:
         cur_url=driver.current_url
         # print(cur_url)
-        if cur_url.startswith(upload_new_checker):
+        # print(cur_url)
+        if cur_url.startswith(upload_new_checker) or cur_url.startswith(upload_new_checker2):
+            # print("good.")
             break
         if driver.find_elements_by_class_name("form_error"):
             print("already.")
@@ -158,8 +161,8 @@ def upload_one_book(book_path,book_isbn):
     fill_in_blanks(driver,new_dict,upload_new_url)
     time.sleep(1)
 
-    if "第" in book_path and "卷" in book_path:
-        formatted_bookpath=book_path.replace("")
+    # if "第" in book_path and "卷" in book_path:
+    #     formatted_bookpath=book_path.replace("")
 
 
 
